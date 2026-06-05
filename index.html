@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>급식봇 — 오늘 뭐 나와?</title>
+<link href="https://fonts.googleapis.com/css2?family=Gmarket+Sans:wght@300;500;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0f14;
+  --surface: #161820;
+  --surface2: #1e2028;
+  --border: rgba(255,255,255,0.07);
+  --accent: #FFD966;
+  --accent2: #FF8C42;
+  --kakao: #FEE500;
+  --text: #f0ede8;
+  --muted: #6b6f7a;
+  --green: #4ade80;
+  --red: #f87171;
+  --blue: #60a5fa;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,217,102,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,217,102,0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+}
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 40px;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+  background: rgba(13,15,20,0.92);
+  backdrop-filter: blur(14px);
+  z-index: 100;
+}
+.logo { font-family: 'Gmarket Sans', sans-serif; font-weight: 700; font-size: 20px; color: var(--accent); }
+.logo span { color: var(--text); font-weight: 300; }
+.gh-badge {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 5px 14px;
+  font-size: 12px; color: var(--muted);
+  text-decoration: none;
+  transition: border-color 0.2s;
+}
+.gh-badge:hover { border-color: rgba(255,255,255,0.15); color: var(--text); }
+.gh-badge svg { width: 14px; height: 14px; fill: currentColor; }
+
+main { max-width: 860px; margin: 0 auto; padding: 44px 20px 100px; }
+
+/* Hero */
+.hero { text-align: center; margin-bottom: 52px; }
+.hero-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,217,102,0.08);
+  border: 1px solid rgba(255,217,102,0.18);
+  border-radius: 100px; padding: 4px 14px;
+  font-size: 12px; color: var(--accent); letter-spacing: 0.4px;
+  margin-bottom: 18px;
+}
+.hero h1 {
+  font-family: 'Gmarket Sans', sans-serif;
+  font-size: clamp(34px, 6vw, 60px);
+  font-weight: 700; line-height: 1.1; letter-spacing: -2px;
+  margin-bottom: 14px;
+}
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p { color: var(--muted); font-size: 15px; line-height: 1.7; }
+
+/* Steps indicator */
+.steps-nav {
+  display: flex; gap: 0; margin-bottom: 32px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  overflow: hidden;
+}
+.step-nav-item {
+  flex: 1; padding: 14px 8px; text-align: center;
+  font-size: 12px; color: var(--muted);
+  border-right: 1px solid var(--border);
+  position: relative;
+}
+.step-nav-item:last-child { border-right: none; }
+.step-nav-item.done { color: var(--green); }
+.step-nav-item.active { color: var(--accent); background: rgba(255,217,102,0.05); }
+.step-nav-item .num {
+  display: block; font-family: 'Gmarket Sans', sans-serif;
+  font-size: 18px; font-weight: 700; margin-bottom: 2px;
+}
+.step-nav-item.done .num::after { content: ' ✓'; font-size: 14px; }
+
+/* Card */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px; margin-bottom: 18px;
+  transition: border-color 0.2s;
+}
+.card:hover { border-color: rgba(255,255,255,0.1); }
+.card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.card-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+}
+.card-icon.y { background: rgba(255,217,102,0.1); }
+.card-icon.o { background: rgba(255,140,66,0.1); }
+.card-icon.k { background: rgba(254,229,0,0.1); }
+.card-icon.g { background: rgba(74,222,128,0.08); }
+.card-icon.b { background: rgba(96,165,250,0.1); }
+.card-title { font-family: 'Gmarket Sans', sans-serif; font-size: 17px; font-weight: 500; }
+.card-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Notice boxes */
+.notice {
+  border-radius: 10px; padding: 13px 16px;
+  font-size: 13px; line-height: 1.7; margin-bottom: 18px;
+}
+.notice.warn {
+  background: rgba(255,140,66,0.06);
+  border: 1px solid rgba(255,140,66,0.15);
+  color: #f0a070;
+}
+.notice.info {
+  background: rgba(96,165,250,0.06);
+  border: 1px solid rgba(96,165,250,0.15);
+  color: #93c5fd;
+}
+.notice a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(255,217,102,0.3); }
+.notice a:hover { border-color: var(--accent); }
+.notice code {
+  background: rgba(0,0,0,0.35); padding: 1px 6px;
+  border-radius: 4px; font-size: 11px; color: var(--accent2);
+}
+
+/* Form */
+label { display: block; font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 7px; }
+input[type="text"], input[type="time"], input[type="date"], select {
+  width: 100%;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 15px;
+  color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-size: 14px;
+  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+}
+input:focus, select:focus {
+  border-color: rgba(255,217,102,0.35);
+  box-shadow: 0 0 0 3px rgba(255,217,102,0.05);
+}
+select option { background: var(--surface2); }
+.form-group { margin-bottom: 14px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+
+/* Search */
+.search-wrap { position: relative; }
+.search-wrap input { padding-right: 72px; }
+.search-btn {
+  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+  background: var(--accent); color: #000; border: none;
+  border-radius: 7px; padding: 6px 13px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  font-family: 'Noto Sans KR', sans-serif; transition: opacity 0.2s;
+}
+.search-btn:hover { opacity: 0.82; }
+.search-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#school-results {
+  display: none; margin-top: 7px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+}
+.school-item {
+  padding: 11px 15px; cursor: pointer;
+  transition: background 0.12s; border-bottom: 1px solid var(--border);
+}
+.school-item:last-child { border-bottom: none; }
+.school-item:hover { background: rgba(255,255,255,0.035); }
+.school-item .sname { font-size: 14px; font-weight: 500; }
+.school-item .saddr { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.school-item.sel { background: rgba(255,217,102,0.07); border-left: 3px solid var(--accent); }
+
+#meal-display { display: none; margin-top: 18px; }
+.meal-date { font-size: 11px; color: var(--muted); margin-bottom: 10px; letter-spacing: 0.4px; }
+.meal-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.meal-tag {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 100px; padding: 5px 13px; font-size: 13px;
+  transition: border-color 0.15s;
+}
+.meal-tag:hover { border-color: rgba(255,217,102,0.25); }
+.no-meal { color: var(--muted); font-size: 13px; padding: 10px 0; }
+
+/* D-day */
+#dday-list { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+.dday-item {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 14px;
+}
+.dday-badge {
+  font-family: 'Gmarket Sans', sans-serif; font-weight: 700; font-size: 13px;
+  min-width: 58px; text-align: center; padding: 4px 9px;
+  border-radius: 6px; background: rgba(255,217,102,0.1); color: var(--accent);
+}
+.dday-badge.past { background: rgba(107,111,122,0.12); color: var(--muted); }
+.dday-badge.today { background: rgba(255,140,66,0.12); color: var(--accent2); }
+.dday-name { flex: 1; font-size: 13px; }
+.dday-date { font-size: 11px; color: var(--muted); }
+.dday-remove {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 16px; padding: 0 3px; transition: color 0.15s;
+}
+.dday-remove:hover { color: var(--red); }
+.add-row { display: grid; grid-template-columns: 1fr auto auto; gap: 9px; align-items: end; }
+.btn-sm {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 16px; color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif; font-size: 13px;
+  cursor: pointer; white-space: nowrap; transition: border-color 0.2s, background 0.2s;
+}
+.btn-sm:hover { border-color: rgba(255,217,102,0.35); background: rgba(255,217,102,0.05); }
+
+/* Kakao */
+.kakao-btn {
+  width: 100%; background: var(--kakao); color: rgba(0,0,0,0.85);
+  border: none; border-radius: 12px; padding: 15px;
+  font-family: 'Gmarket Sans', sans-serif; font-size: 15px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px;
+  transition: opacity 0.2s, transform 0.1s;
+}
+.kakao-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+.kakao-btn svg { width: 20px; height: 20px; }
+.kakao-status {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 15px; background: rgba(254,229,0,0.05);
+  border: 1px solid rgba(254,229,0,0.12); border-radius: 10px; margin-top: 11px; font-size: 13px;
+}
+.k-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--kakao); }
+.k-name { flex: 1; font-weight: 500; }
+.k-sub { font-size: 11px; color: var(--muted); }
+.btn-unlink { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; }
+
+/* Time chips */
+.time-chips { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 11px; }
+.time-chip {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 100px; padding: 6px 15px; font-size: 12px;
+  cursor: pointer; transition: all 0.12s; color: var(--text);
+}
+.time-chip.on { background: rgba(255,217,102,0.1); border-color: rgba(255,217,102,0.35); color: var(--accent); }
+
+/* Preview */
+.preview-box {
+  background: var(--surface2); border: 1px solid rgba(254,229,0,0.1);
+  border-radius: 12px; padding: 18px; margin-top: 16px;
+}
+.preview-label { font-size: 10px; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 11px; }
+.preview-bubble {
+  background: var(--kakao); color: rgba(0,0,0,0.85);
+  border-radius: 0 12px 12px 12px; padding: 13px 15px;
+  font-size: 13px; line-height: 1.85; display: inline-block; max-width: 100%; white-space: pre-line;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+
+/* GitHub settings card */
+.gh-field {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 15px; margin-bottom: 10px;
+}
+.gh-field-label { font-size: 12px; color: var(--muted); width: 160px; flex-shrink: 0; }
+.gh-field-val { font-size: 13px; font-family: monospace; color: var(--accent2); flex: 1; word-break: break-all; }
+.gh-field-status { font-size: 11px; }
+.gh-field-status.ok { color: var(--green); }
+.gh-field-status.miss { color: var(--red); }
+
+/* Save button */
+.btn-save {
+  width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; border: none; border-radius: 12px; padding: 15px;
+  font-family: 'Gmarket Sans', sans-serif; font-size: 15px; font-weight: 700;
+  cursor: pointer; margin-top: 8px; transition: opacity 0.2s, transform 0.1s; letter-spacing: -0.3px;
+}
+.btn-save:hover { opacity: 0.88; transform: translateY(-1px); }
+.btn-save:active { transform: none; }
+.btn-save:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+/* Dispatch trigger */
+.btn-trigger {
+  width: 100%; background: var(--surface2); border: 1px solid rgba(96,165,250,0.25);
+  border-radius: 12px; padding: 13px; color: var(--blue);
+  font-family: 'Gmarket Sans', sans-serif; font-size: 14px; font-weight: 500;
+  cursor: pointer; margin-top: 8px; transition: background 0.2s, border-color 0.2s;
+}
+.btn-trigger:hover { background: rgba(96,165,250,0.06); border-color: rgba(96,165,250,0.4); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 28px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 100px; padding: 11px 22px;
+  font-size: 13px; color: var(--text); transition: transform 0.28s ease;
+  z-index: 999; white-space: nowrap; box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.ok { border-color: rgba(74,222,128,0.3); color: var(--green); }
+.toast.err { border-color: rgba(248,113,113,0.3); color: var(--red); }
+
+.spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.55s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+
+@media(max-width:600px){
+  header { padding: 14px 18px; }
+  main { padding: 28px 14px 80px; }
+  .form-row { grid-template-columns: 1fr; }
+  .add-row { grid-template-columns: 1fr 1fr; }
+  .add-row .btn-sm { grid-column: span 2; }
+  .steps-nav { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">급식봇<span>.github</span></div>
+  <a class="gh-badge" id="gh-link" href="#" target="_blank">
+    <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    GitHub Repository
+  </a>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="hero-tag">🔧 GitHub Repository 기반</div>
+    <h1>설정하면 <em>자동으로</em><br>카톡이 와요</h1>
+    <p>GitHub Actions가 매일 급식 조회 후<br>카카오톡 나에게 보내기로 무료 발송</p>
+  </div>
+
+  <div class="steps-nav">
+    <div class="step-nav-item active" id="nav1"><span class="num">1</span>학교</div>
+    <div class="step-nav-item" id="nav2"><span class="num">2</span>디데이</div>
+    <div class="step-nav-item" id="nav3"><span class="num">3</span>카카오</div>
+    <div class="step-nav-item" id="nav4"><span class="num">4</span>시간</div>
+    <div class="step-nav-item" id="nav5"><span class="num">5</span>저장</div>
+  </div>
+
+  <!-- GitHub 저장소 설정 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon b">⚙️</div>
+      <div>
+        <div class="card-title">GitHub 저장소 설정</div>
+        <div class="card-desc">settings.json 자동 저장을 위해 입력하세요</div>
+      </div>
+    </div>
+    <div class="notice info">
+      웹사이트에서 저장 버튼을 누르면 <strong>GitHub API</strong>를 통해 <code>data/settings.json</code>이 자동으로 업데이트됩니다.<br>
+      저장소를 <strong>Public</strong>으로 설정하거나, Personal Access Token을 발급해주세요.
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>GitHub 사용자명</label>
+        <input type="text" id="gh-owner" placeholder="예: your-username" />
+      </div>
+      <div class="form-group">
+        <label>저장소 이름</label>
+        <input type="text" id="gh-repo" placeholder="예: meal-bot" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Personal Access Token <span style="color:var(--muted);text-transform:none;font-size:11px">(repo 권한 필요)</span></label>
+      <input type="text" id="gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
+    </div>
+    <div class="notice warn" style="margin-bottom:0">
+      🔐 Token은 브라우저 로컬 저장소에만 저장됩니다. GitHub에 노출되지 않아요.<br>
+      발급: <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank">github.com → Settings → Developer settings → Personal access tokens</a>
+    </div>
+  </div>
+
+  <!-- 1. 학교 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon y">🏫</div>
+      <div>
+        <div class="card-title">학교 검색</div>
+        <div class="card-desc">고등학교 이름으로 검색</div>
+      </div>
+    </div>
+    <div class="notice warn">
+      ⚠️ <a href="https://open.neis.go.kr/portal/guide/apiRegisterGuide.do" target="_blank">NEIS 오픈API</a> 키 발급 후
+      GitHub Secrets에 <code>NEIS_API_KEY</code>로 등록하세요. (무료 즉시 발급)
+    </div>
+    <div class="form-group">
+      <label>학교 이름</label>
+      <div class="search-wrap">
+        <input type="text" id="school-input" placeholder="예: 서울고등학교" />
+        <button class="search-btn" onclick="searchSchool()">검색</button>
+      </div>
+    </div>
+    <div id="school-results"></div>
+    <div id="meal-display">
+      <div class="meal-date" id="meal-date"></div>
+      <div class="meal-list" id="meal-list"></div>
+    </div>
+  </div>
+
+  <!-- 2. D-day -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon o">📅</div>
+      <div>
+        <div class="card-title">디데이 등록</div>
+        <div class="card-desc">시험, 수행평가 등을 등록하세요</div>
+      </div>
+    </div>
+    <div id="dday-list"></div>
+    <div class="add-row">
+      <div>
+        <label>일정 이름</label>
+        <input type="text" id="dday-name" placeholder="예: 수능" />
+      </div>
+      <div>
+        <label>날짜</label>
+        <input type="date" id="dday-date" />
+      </div>
+      <button class="btn-sm" onclick="addDday()">+ 추가</button>
+    </div>
+  </div>
+
+  <!-- 3. 카카오 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon k">💬</div>
+      <div>
+        <div class="card-title">카카오 연결</div>
+        <div class="card-desc">나에게 보내기 토큰 발급</div>
+      </div>
+    </div>
+    <div class="notice info">
+      카카오 로그인 후 발급되는 <strong>Access Token</strong>을 GitHub Secrets에 저장해야 발송됩니다.<br>
+      토큰은 만료(~2시간)되면 Refresh Token으로 자동 갱신됩니다.
+    </div>
+    <button class="kakao-btn" id="kakao-btn" onclick="connectKakao()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.48 3 2 6.48 2 10.8c0 2.7 1.56 5.07 3.9 6.48L5.1 21l4.26-2.28c.84.21 1.71.33 2.64.33 5.52 0 10-3.48 10-7.8S17.52 3 12 3z"/></svg>
+      카카오 로그인으로 토큰 받기
+    </button>
+    <div class="kakao-status" id="kakao-status" style="display:none">
+      <div class="k-dot"></div>
+      <div style="flex:1">
+        <div class="k-name" id="kakao-name">—</div>
+        <div class="k-sub">Access Token 발급됨 → GitHub Secrets에 저장 필요</div>
+      </div>
+      <button class="btn-unlink" onclick="disconnectKakao()">해제</button>
+    </div>
+    <!-- 토큰 복사 영역 -->
+    <div id="token-copy-area" style="display:none;margin-top:12px">
+      <div class="notice warn" style="margin-bottom:8px">
+        아래 토큰을 복사해서 GitHub Secrets에 등록하세요
+      </div>
+      <div class="gh-field">
+        <span class="gh-field-label">KAKAO_ACCESS_TOKEN</span>
+        <span class="gh-field-val" id="token-val" style="font-size:11px">—</span>
+        <button onclick="copyToken('access')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--muted);cursor:pointer;font-size:11px;white-space:nowrap">복사</button>
+      </div>
+      <div class="gh-field">
+        <span class="gh-field-label">KAKAO_REFRESH_TOKEN</span>
+        <span class="gh-field-val" id="refresh-val" style="font-size:11px">—</span>
+        <button onclick="copyToken('refresh')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--muted);cursor:pointer;font-size:11px;white-space:nowrap">복사</button>
+      </div>
+      <a id="secrets-link" href="#" target="_blank" class="btn-trigger" style="display:block;text-align:center;text-decoration:none;margin-top:6px">
+        → GitHub Secrets 페이지 열기
+      </a>
+    </div>
+  </div>
+
+  <!-- 4. 알림 시간 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon g">⏰</div>
+      <div>
+        <div class="card-title">알림 시간</div>
+        <div class="card-desc">GitHub Actions cron 시간 자동 설정</div>
+      </div>
+    </div>
+    <div>
+      <label>빠른 선택</label>
+      <div class="time-chips">
+        <div class="time-chip" onclick="setTime('07:00','오전 7시')">오전 7시</div>
+        <div class="time-chip on" onclick="setTime('07:30','오전 7:30')">오전 7:30</div>
+        <div class="time-chip" onclick="setTime('08:00','오전 8시')">오전 8시</div>
+        <div class="time-chip" onclick="setTime('11:30','오전 11:30')">오전 11:30</div>
+        <div class="time-chip" onclick="setTime('12:00','오후 12시')">오후 12시</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>직접 입력 (KST)</label>
+      <input type="time" id="alert-time" value="07:30" />
+    </div>
+    <div class="notice info" style="margin-bottom:0">
+      💡 GitHub Actions는 UTC 기준입니다. KST 입력 시 자동으로 변환해서 <code>meal-alert.yml</code>에 반영합니다.
+    </div>
+
+    <!-- 미리보기 -->
+    <div class="preview-box">
+      <div class="preview-label">📱 카톡 미리보기</div>
+      <div class="preview-bubble" id="preview-text">설정을 완료하면 미리보기가 표시됩니다.</div>
+    </div>
+  </div>
+
+  <!-- 5. 저장 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon b">🚀</div>
+      <div>
+        <div class="card-title">GitHub에 저장</div>
+        <div class="card-desc">settings.json + workflow 자동 커밋</div>
+      </div>
+    </div>
+
+    <!-- 현재 상태 체크 -->
+    <div id="status-check">
+      <div class="gh-field">
+        <span class="gh-field-label">저장소</span>
+        <span class="gh-field-val" id="st-repo">미설정</span>
+        <span class="gh-field-status" id="st-repo-s">—</span>
+      </div>
+      <div class="gh-field">
+        <span class="gh-field-label">학교</span>
+        <span class="gh-field-val" id="st-school">미선택</span>
+        <span class="gh-field-status" id="st-school-s">—</span>
+      </div>
+      <div class="gh-field">
+        <span class="gh-field-label">카카오 토큰</span>
+        <span class="gh-field-val" id="st-kakao">미연결</span>
+        <span class="gh-field-status" id="st-kakao-s">—</span>
+      </div>
+      <div class="gh-field">
+        <span class="gh-field-label">알림 시간</span>
+        <span class="gh-field-val" id="st-time">07:30 KST</span>
+        <span class="gh-field-status ok" id="st-time-s">✓</span>
+      </div>
+    </div>
+
+    <button class="btn-save" onclick="saveToGithub()" id="save-btn">
+      GitHub에 설정 저장하기
+    </button>
+    <button class="btn-trigger" onclick="triggerAction()">
+      ▶ Actions 즉시 실행 (테스트 발송)
+    </button>
+  </div>
+
+  <!-- 가이드 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon y">📖</div>
+      <div>
+        <div class="card-title">처음 설정 가이드</div>
+        <div class="card-desc">순서대로 따라하세요</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:13px">
+      <div style="display:flex;gap:13px;align-items:flex-start">
+        <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,217,102,0.1);border:1px solid rgba(255,217,102,0.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0">1</div>
+        <div style="font-size:13px;line-height:1.65;color:var(--text)">
+          <strong style="color:var(--accent)">저장소 생성</strong><br>
+          <a href="https://github.com/new" target="_blank" style="color:var(--blue);text-decoration:none">github.com/new</a> → 저장소 이름 입력 → Public → Create<br>
+          그 다음 이 파일들을 업로드: <code style="background:rgba(0,0,0,0.35);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--accent2)">index.html</code> <code style="background:rgba(0,0,0,0.35);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--accent2)">scripts/send_alert.py</code> <code style="background:rgba(0,0,0,0.35);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--accent2)">.github/workflows/meal-alert.yml</code> <code style="background:rgba(0,0,0,0.35);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--accent2)">data/settings.json</code>
+        </div>
+      </div>
+      <div style="display:flex;gap:13px;align-items:flex-start">
+        <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,217,102,0.1);border:1px solid rgba(255,217,102,0.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0">2</div>
+        <div style="font-size:13px;line-height:1.65;color:var(--text)">
+          <strong style="color:var(--accent)">GitHub Secrets 등록</strong><br>
+          저장소 → Settings → Secrets and variables → Actions → New repository secret<br>
+          <code style="background:rgba(0,0,0,0.35);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--accent2)">NEIS_API_KEY</code> · <code style="background:rgba(0,0,0,0.35);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--accent2)">KAKAO_ACCESS_TOKEN</code> · <code style="background:rgba(0,0,0,0.35);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--accent2)">KAKAO_REFRESH_TOKEN</code> · <code style="background:rgba(0,0,0,0.35);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--accent2)">KAKAO_REST_KEY</code>
+        </div>
+      </div>
+      <div style="display:flex;gap:13px;align-items:flex-start">
+        <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,217,102,0.1);border:1px solid rgba(255,217,102,0.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0">3</div>
+        <div style="font-size:13px;line-height:1.65;color:var(--text)">
+          <strong style="color:var(--accent)">GitHub Pages 활성화</strong><br>
+          저장소 → Settings → Pages → Source: Deploy from branch → main → Save<br>
+          <span style="color:var(--muted)">약 1분 후 <code style="background:rgba(0,0,0,0.35);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--accent2)">https://사용자명.github.io/저장소명</code> 에서 접속 가능</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:13px;align-items:flex-start">
+        <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,217,102,0.1);border:1px solid rgba(255,217,102,0.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0">4</div>
+        <div style="font-size:13px;line-height:1.65;color:var(--text)">
+          <strong style="color:var(--accent)">이 페이지에서 설정 완료</strong><br>
+          위에서 학교·디데이·카카오·시간 설정 후 <strong style="color:var(--accent)">GitHub에 저장하기</strong> 클릭 → 완료! 🎉
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+const S = {
+  school: null,
+  ddays: JSON.parse(localStorage.getItem('ddays') || '[]'),
+  kakaoToken: localStorage.getItem('kakaoToken') || null,
+  kakaoRefresh: localStorage.getItem('kakaoRefresh') || null,
+  alertTime: localStorage.getItem('alertTime') || '07:30',
+  ghOwner: localStorage.getItem('ghOwner') || '',
+  ghRepo: localStorage.getItem('ghRepo') || '',
+  ghToken: localStorage.getItem('ghToken') || '',
+  mealItems: null,
+};
+
+// ─── Init ────────────────────────────────────────────────
+(function init() {
+  document.getElementById('alert-time').value = S.alertTime;
+  document.getElementById('gh-owner').value = S.ghOwner;
+  document.getElementById('gh-repo').value = S.ghRepo;
+  document.getElementById('gh-token').value = S.ghToken;
+
+  const saved = localStorage.getItem('school');
+  if (saved) { try { S.school = JSON.parse(saved); document.getElementById('school-input').value = S.school.name; loadMeal(); } catch(e){} }
+  if (S.kakaoToken) showKakaoConnected('저장된 계정');
+
+  updateGhLink();
+  renderDdays();
+  updateStatus();
+  updatePreview();
+})();
+
+// ─── GitHub link update ──────────────────────────────────
+function updateGhLink() {
+  const o = document.getElementById('gh-owner').value.trim();
+  const r = document.getElementById('gh-repo').value.trim();
+  if (o && r) {
+    document.getElementById('gh-link').href = `https://github.com/${o}/${r}`;
+    document.getElementById('secrets-link').href = `https://github.com/${o}/${r}/settings/secrets/actions`;
+  }
+}
+['gh-owner','gh-repo','gh-token'].forEach(id => {
+  document.getElementById(id).addEventListener('input', function() {
+    S[id === 'gh-owner' ? 'ghOwner' : id === 'gh-repo' ? 'ghRepo' : 'ghToken'] = this.value;
+    localStorage.setItem(id === 'gh-owner' ? 'ghOwner' : id === 'gh-repo' ? 'ghRepo' : 'ghToken', this.value);
+    updateGhLink();
+    updateStatus();
+  });
+});
+
+// ─── Status update ───────────────────────────────────────
+function updateStatus() {
+  const o = document.getElementById('gh-owner').value.trim();
+  const r = document.getElementById('gh-repo').value.trim();
+  const repoEl = document.getElementById('st-repo');
+  const repoS  = document.getElementById('st-repo-s');
+  if (o && r) { repoEl.textContent = `${o}/${r}`; repoS.textContent = '✓'; repoS.className = 'gh-field-status ok'; }
+  else { repoEl.textContent = '미설정'; repoS.textContent = '✕'; repoS.className = 'gh-field-status miss'; }
+
+  const schoolEl = document.getElementById('st-school');
+  const schoolS  = document.getElementById('st-school-s');
+  if (S.school) { schoolEl.textContent = S.school.name; schoolS.textContent = '✓'; schoolS.className = 'gh-field-status ok'; }
+  else { schoolEl.textContent = '미선택'; schoolS.textContent = '✕'; schoolS.className = 'gh-field-status miss'; }
+
+  const kakaoEl = document.getElementById('st-kakao');
+  const kakaoS  = document.getElementById('st-kakao-s');
+  if (S.kakaoToken) { kakaoEl.textContent = S.kakaoToken.slice(0,12)+'…'; kakaoS.textContent = '✓'; kakaoS.className = 'gh-field-status ok'; }
+  else { kakaoEl.textContent = '미연결'; kakaoS.textContent = '✕'; kakaoS.className = 'gh-field-status miss'; }
+
+  document.getElementById('st-time').textContent = document.getElementById('alert-time').value + ' KST';
+}
+
+// ─── School search ───────────────────────────────────────
+async function searchSchool() {
+  const q = document.getElementById('school-input').value.trim();
+  if (!q) return;
+  const btn = document.querySelector('.search-btn');
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  try {
+    const NEIS_KEY = 'DEMO';
+    if (NEIS_KEY === 'DEMO') { showSampleSchools(q); return; }
+    const url = `https://open.neis.go.kr/hub/schoolInfo?KEY=${NEIS_KEY}&Type=json&SCHUL_KND_SC_NM=고등학교&SCHUL_NM=${encodeURIComponent(q)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    showSchoolResults(data?.schoolInfo?.[1]?.row || []);
+  } catch(e) { showSampleSchools(q); }
+  finally { btn.innerHTML = '검색'; btn.disabled = false; }
+}
+
+function showSampleSchools(q) {
+  showSchoolResults([
+    { SCHUL_NM: q+'고등학교', ORG_RDNMA: '서울특별시 강남구', ATPT_OFCDC_SC_CODE: 'B10', SD_SCHUL_CODE: '7010536' },
+    { SCHUL_NM: '서울'+q+'고등학교', ORG_RDNMA: '서울특별시 서초구', ATPT_OFCDC_SC_CODE: 'B10', SD_SCHUL_CODE: '7010537' },
+  ]);
+  showToast('⚠️ NEIS API 키 설정 후 실제 검색 가능', 'err');
+}
+
+function showSchoolResults(list) {
+  const el = document.getElementById('school-results');
+  el.style.display = 'block';
+  if (!list.length) { el.innerHTML = '<div class="school-item"><div class="sname">결과 없음</div></div>'; return; }
+  el.innerHTML = list.slice(0,5).map(s =>
+    `<div class="school-item" onclick="selectSchool(this,'${s.SCHUL_NM}','${s.ORG_RDNMA}','${s.ATPT_OFCDC_SC_CODE}','${s.SD_SCHUL_CODE}')">
+      <div class="sname">${s.SCHUL_NM}</div>
+      <div class="saddr">${s.ORG_RDNMA}</div>
+    </div>`
+  ).join('');
+}
+
+async function selectSchool(el, name, addr, orgCode, schoolCode) {
+  document.querySelectorAll('.school-item').forEach(i => i.classList.remove('sel'));
+  el.classList.add('sel');
+  S.school = { name, addr, orgCode, schoolCode };
+  localStorage.setItem('school', JSON.stringify(S.school));
+  document.getElementById('school-input').value = name;
+  document.getElementById('school-results').style.display = 'none';
+  markNav(1);
+  await loadMeal();
+  updateStatus(); updatePreview();
+}
+
+async function loadMeal() {
+  if (!S.school) return;
+  const today = new Date();
+  const ymd = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+  try {
+    const url = `https://open.neis.go.kr/hub/mealServiceDietInfo?KEY=DEMO&Type=json&ATPT_OFCDC_SC_CODE=${S.school.orgCode}&SD_SCHUL_CODE=${S.school.schoolCode}&MLSV_YMD=${ymd}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const rows = data?.mealServiceDietInfo?.[1]?.row || [];
+    const lunch = rows.find(r => r.MMEAL_SC_NM === '중식') || rows[0];
+    if (lunch) { showMeal(lunch.DDISH_NM, today); return; }
+  } catch(e) {}
+  showSampleMeal();
+}
+
+function showSampleMeal() {
+  showMeal('쌀밥<br/>된장찌개(5.6.)<br/>돼지불고기(5.6.10.13.)<br/>깍두기(9.)<br/>우유(2.)', new Date());
+}
+
+function showMeal(dishStr, date) {
+  const days = ['일','월','화','수','목','금','토'];
+  document.getElementById('meal-date').textContent = `${date.getMonth()+1}월 ${date.getDate()}일(${days[date.getDay()]}) 중식`;
+  const items = dishStr.split(/<br\/?>/i).map(s => s.replace(/\([\d.]+\)/g,'').trim()).filter(Boolean);
+  document.getElementById('meal-list').innerHTML = items.map(i => `<span class="meal-tag">${i}</span>`).join('');
+  document.getElementById('meal-display').style.display = 'block';
+  S.mealItems = items;
+  updatePreview();
+}
+
+// ─── D-day ───────────────────────────────────────────────
+function calcDday(d) {
+  const t = new Date(d); t.setHours(0,0,0,0);
+  const n = new Date(); n.setHours(0,0,0,0);
+  return Math.round((t-n)/86400000);
+}
+function addDday() {
+  const name = document.getElementById('dday-name').value.trim();
+  const date = document.getElementById('dday-date').value;
+  if (!name||!date) { showToast('이름과 날짜를 입력해주세요','err'); return; }
+  S.ddays.push({ name, date, id: Date.now() });
+  localStorage.setItem('ddays', JSON.stringify(S.ddays));
+  document.getElementById('dday-name').value = '';
+  document.getElementById('dday-date').value = '';
+  renderDdays(); updatePreview(); markNav(2);
+}
+function removeDday(id) {
+  S.ddays = S.ddays.filter(d => d.id !== id);
+  localStorage.setItem('ddays', JSON.stringify(S.ddays));
+  renderDdays(); updatePreview();
+}
+function renderDdays() {
+  const el = document.getElementById('dday-list');
+  if (!S.ddays.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;margin-bottom:14px;padding:6px 0">등록된 일정이 없습니다</div>'; return; }
+  el.innerHTML = S.ddays.map(d => {
+    const diff = calcDday(d.date);
+    const label = diff===0?'D-Day!':diff>0?`D-${diff}`:`D+${Math.abs(diff)}`;
+    const cls = diff===0?'today':diff<0?'past':'';
+    return `<div class="dday-item">
+      <div class="dday-badge ${cls}">${label}</div>
+      <div class="dday-name">${d.name}</div>
+      <div class="dday-date">${d.date}</div>
+      <button class="dday-remove" onclick="removeDday(${d.id})">×</button>
+    </div>`;
+  }).join('');
+}
+
+// ─── Kakao ───────────────────────────────────────────────
+function connectKakao() {
+  const KAKAO_KEY = 'YOUR_KAKAO_REST_API_KEY';
+  if (KAKAO_KEY === 'YOUR_KAKAO_REST_API_KEY') {
+    // 데모 모드
+    const fakeToken = 'demo_access_' + Math.random().toString(36).slice(2,10);
+    const fakeRefresh = 'demo_refresh_' + Math.random().toString(36).slice(2,10);
+    S.kakaoToken = fakeToken; S.kakaoRefresh = fakeRefresh;
+    localStorage.setItem('kakaoToken', fakeToken);
+    localStorage.setItem('kakaoRefresh', fakeRefresh);
+    showKakaoConnected('데모 사용자');
+    showTokenCopy(fakeToken, fakeRefresh);
+    showToast('⚠️ 데모 토큰입니다. 실제 Kakao 앱 키 설정 필요', 'err');
+    markNav(3); updateStatus();
+    return;
+  }
+  const redirect = encodeURIComponent(window.location.origin + window.location.pathname);
+  window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_KEY}&redirect_uri=${redirect}&response_type=code`;
+}
+
+function showKakaoConnected(name) {
+  document.getElementById('kakao-btn').style.display = 'none';
+  const st = document.getElementById('kakao-status');
+  st.style.display = 'flex';
+  document.getElementById('kakao-name').textContent = name;
+  if (S.kakaoToken) showTokenCopy(S.kakaoToken, S.kakaoRefresh);
+  markNav(3);
+}
+
+function showTokenCopy(access, refresh) {
+  const area = document.getElementById('token-copy-area');
+  area.style.display = 'block';
+  document.getElementById('token-val').textContent = access ? access.slice(0,20)+'…' : '—';
+  document.getElementById('refresh-val').textContent = refresh ? refresh.slice(0,20)+'…' : '—';
+  window._tokens = { access, refresh };
+}
+
+function copyToken(type) {
+  const val = type === 'access' ? window._tokens?.access : window._tokens?.refresh;
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(() => showToast('클립보드에 복사됐어요!', 'ok'));
+}
+
+function disconnectKakao() {
+  S.kakaoToken = null; S.kakaoRefresh = null;
+  localStorage.removeItem('kakaoToken'); localStorage.removeItem('kakaoRefresh');
+  document.getElementById('kakao-btn').style.display = 'flex';
+  document.getElementById('kakao-status').style.display = 'none';
+  document.getElementById('token-copy-area').style.display = 'none';
+  updateStatus();
+}
+
+// ─── Time ────────────────────────────────────────────────
+function setTime(t, label) {
+  document.getElementById('alert-time').value = t;
+  document.querySelectorAll('.time-chip').forEach(c => c.classList.toggle('on', c.textContent === label));
+  S.alertTime = t;
+  localStorage.setItem('alertTime', t);
+  updateStatus(); updatePreview();
+}
+document.getElementById('alert-time').addEventListener('change', function() {
+  S.alertTime = this.value;
+  localStorage.setItem('alertTime', this.value);
+  document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('on'));
+  updateStatus(); updatePreview();
+});
+
+// ─── Preview ─────────────────────────────────────────────
+function updatePreview() {
+  const sname = S.school ? S.school.name : '○○고등학교';
+  const today = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  const ds = `${today.getMonth()+1}/${today.getDate()}(${days[today.getDay()]})`;
+  const meals = S.mealItems || ['쌀밥','된장찌개','돼지불고기','깍두기','우유'];
+  const up = S.ddays.filter(d=>calcDday(d.date)>=0).sort((a,b)=>calcDday(a.date)-calcDday(b.date)).slice(0,4);
+  let msg = `🍱 ${sname} ${ds} 중식\n─────────────────\n`;
+  msg += meals.slice(0,5).join('\n');
+  if (up.length) {
+    msg += '\n─────────────────\n';
+    up.forEach(d => { const diff=calcDday(d.date); msg += `📌 ${d.name}  ${diff===0?'D-Day! 🎉':'D-'+diff}\n`; });
+  }
+  document.getElementById('preview-text').textContent = msg.trim();
+}
+
+// ─── Save to GitHub ──────────────────────────────────────
+async function saveToGithub() {
+  const owner = document.getElementById('gh-owner').value.trim();
+  const repo  = document.getElementById('gh-repo').value.trim();
+  const token = document.getElementById('gh-token').value.trim();
+
+  if (!owner || !repo || !token) { showToast('GitHub 정보를 모두 입력해주세요', 'err'); return; }
+  if (!S.school) { showToast('학교를 먼저 선택해주세요', 'err'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = '저장 중...';
+
+  const alertTime = document.getElementById('alert-time').value;
+  const settings = { school: S.school, ddays: S.ddays, alertTime, updatedAt: new Date().toISOString() };
+
+  try {
+    // 1. settings.json 저장
+    await githubPut(owner, repo, token, 'data/settings.json', JSON.stringify(settings, null, 2));
+
+    // 2. workflow cron 시간 업데이트
+    const [hh, mm] = alertTime.split(':').map(Number);
+    const utcH = (hh - 9 + 24) % 24;
+    const utcM = mm;
+    const dow = '0-4'; // 월~금
+    const cronExpr = `${utcM} ${utcH} * * ${dow}`;
+    const workflowContent = generateWorkflow(cronExpr);
+    await githubPut(owner, repo, token, '.github/workflows/meal-alert.yml', workflowContent);
+
+    showToast('✅ GitHub에 저장 완료!', 'ok');
+    markNav(5);
+  } catch(e) {
+    showToast('❌ 저장 실패: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'GitHub에 설정 저장하기';
+  }
+}
+
+async function githubPut(owner, repo, token, path, content) {
+  // 기존 파일 SHA 조회
+  let sha = null;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+      { headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' } });
+    if (r.ok) { const d = await r.json(); sha = d.sha; }
+  } catch(e) {}
+
+  const body = { message: `🍱 급식봇 설정 업데이트 (${new Date().toLocaleString('ko')})`, content: btoa(unescape(encodeURIComponent(content))) };
+  if (sha) body.sha = sha;
+
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+    method: 'PUT',
+    headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || `HTTP ${res.status}`);
+  }
+}
+
+function generateWorkflow(cronExpr) {
+  return `name: 🍱 급식 알림 발송
+
+on:
+  schedule:
+    - cron: '${cronExpr}'
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: '테스트 발송 (true/false)'
+        required: false
+        default: 'false'
+
+jobs:
+  send-meal-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - name: 급식 알림 발송
+        env:
+          NEIS_API_KEY: \${{ secrets.NEIS_API_KEY }}
+          KAKAO_ACCESS_TOKEN: \${{ secrets.KAKAO_ACCESS_TOKEN }}
+          KAKAO_REFRESH_TOKEN: \${{ secrets.KAKAO_REFRESH_TOKEN }}
+          KAKAO_REST_KEY: \${{ secrets.KAKAO_REST_KEY }}
+          TEST_MODE: \${{ github.event.inputs.test_mode || 'false' }}
+        run: python scripts/send_alert.py
+`;
+}
+
+// ─── Trigger Action ──────────────────────────────────────
+async function triggerAction() {
+  const owner = document.getElementById('gh-owner').value.trim();
+  const repo  = document.getElementById('gh-repo').value.trim();
+  const token = document.getElementById('gh-token').value.trim();
+  if (!owner || !repo || !token) { showToast('GitHub 정보를 먼저 입력하세요', 'err'); return; }
+
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/meal-alert.yml/dispatches`, {
+      method: 'POST',
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: 'main', inputs: { test_mode: 'false' } }),
+    });
+    if (res.ok || res.status === 204) {
+      showToast('✅ Actions 실행 요청 완료! 잠시 후 카톡 확인', 'ok');
+    } else {
+      const e = await res.json();
+      showToast('❌ ' + (e.message || 'Actions 실행 실패'), 'err');
+    }
+  } catch(e) {
+    showToast('❌ 네트워크 오류', 'err');
+  }
+}
+
+// ─── Nav steps ───────────────────────────────────────────
+function markNav(step) {
+  for (let i = 1; i <= step; i++) {
+    const el = document.getElementById('nav'+i);
+    if (el) el.className = 'step-nav-item ' + (i === step ? 'active' : 'done');
+  }
+}
+
+// ─── Toast ───────────────────────────────────────────────
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+document.getElementById('school-input').addEventListener('keydown', e => { if (e.key==='Enter') searchSchool(); });
+
+// Kakao OAuth callback
+const params = new URLSearchParams(window.location.search);
+if (params.get('kakaoToken')) {
+  S.kakaoToken = params.get('kakaoToken');
+  localStorage.setItem('kakaoToken', S.kakaoToken);
+  showKakaoConnected('카카오 사용자');
+  window.history.replaceState({}, '', window.location.pathname);
+}
+</script>
+</body>
+</html>
