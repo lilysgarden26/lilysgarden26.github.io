@@ -1,0 +1,48 @@
+name: 🍱 급식 알림 발송
+
+on:
+  # 매일 UTC 22:00 = KST 07:00 (원하는 시간으로 변경)
+  # KST = UTC + 9  →  KST 07:30 = UTC 22:30 전날
+  schedule:
+    - cron: '30 22 * * 0-4'   # 일~목 UTC 22:30 (KST 월~금 07:30)
+
+  # 웹사이트에서 설정 저장 시 즉시 테스트 발송용
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: '테스트 발송 (true/false)'
+        required: false
+        default: 'false'
+
+jobs:
+  send-meal-alert:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 의존성 설치
+        run: pip install requests
+
+      - name: 급식 알림 발송
+        env:
+          NEIS_API_KEY: ${{ secrets.NEIS_API_KEY }}
+          KAKAO_ACCESS_TOKEN: ${{ secrets.KAKAO_ACCESS_TOKEN }}
+          KAKAO_REFRESH_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
+          KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
+          TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}
+        run: python scripts/send_alert.py
+
+      - name: 토큰 갱신 결과 저장
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: token-log
+          path: scripts/token_log.txt
+          retention-days: 3
